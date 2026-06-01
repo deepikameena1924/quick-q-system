@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick-Q | Multi-Tenant Multi-Sector Queue Cloud</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+        
+        /* 🌟 PREMIUM GLOWING HEADERS */
+        .main-title { font-weight: 800; color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .subtitle-text { color: #94a3b8; font-size: 1.1rem; }
+        
+        /* 🏢 SECTOR ISOLATED CARD MATRIX */
+        .tenant-card { background: #1e293b; border: 2px solid #334155; border-radius: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+        .tenant-card:hover { transform: translateY(-5px); border-color: #475569; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        
+        .sector-title { color: #ffffff !important; font-weight: 700; font-size: 1.75rem; }
+        .rules-badge { background: #0f172a !important; color: #fbbf24 !important; border: 1px solid #475569; font-weight: 700; }
+        
+        /* 📊 METRIC PIPELINES (HIGH CONTRAST) */
+        .mini-stat-box { background: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 12px 8px; }
+        
+        /* Fixed: Clear visible text colors for labels */
+        .stat-label { color: #cbd5e1 !important; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
+        
+        /* 🔗 HIGH CONTRAST ANALYTICS LINK */
+        .analytics-link { color: #38bdf8 !important; font-weight: 700; font-size: 0.95rem; text-decoration: none; transition: 0.2s; display: inline-flex; align-items: center; }
+        .analytics-link:hover { color: #7dd3fc !important; text-decoration: underline; }
+        
+        /* BUTTON CONSOLES */
+        .btn-book { background: #ffffff; color: #0f172a; font-weight: 700; border-radius: 14px; border: 2px solid #ffffff; transition: 0.2s; }
+        .btn-book:hover { background: #e2e8f0; color: #0f172a; border-color: #e2e8f0; }
+        .btn-console { background: transparent; color: #ffffff; border: 2px solid #475569; font-weight: 600; border-radius: 14px; transition: 0.2s; }
+        .btn-console:hover { background: #334155; border-color: #64748b; color: #ffffff; }
+        .btn-tv { border-color: #eab308; color: #eab308; }
+        .btn-tv:hover { background: rgba(234, 179, 8, 0.1); color: #facc15; border-color: #facc15; }
+        
+        .global-node { background: linear-gradient(135deg, #1e1b4b, #0f172a); border: 2px dashed #4338ca; border-radius: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    
+    <div class="text-center mb-5">
+        <div class="d-inline-flex align-items-center mb-3">
+            <i class="fa-solid fa-layer-group text-warning display-5 me-3"></i>
+            <h1 class="main-title m-0 display-4">Quick-Q Multi-Tenant Hub</h1>
+        </div>
+        <p class="subtitle-text">Select an isolated sector terminal to manage live queue ecosystems.</p>
+        
+        <div class="badge global-node px-4 py-3 mt-2 shadow-sm">
+            <span class="text-indigo-200 text-uppercase tracking-wider fw-bold small d-block mb-1" style="color: #c7d2fe;">Global Platform Footfall Node</span>
+            <h3 class="m-0 fw-black text-white font-monospace"><i class="fa-solid fa-chart-line text-success me-2"></i>{{ overall_footfall }} Users Tracked</h3>
+        </div>
+    </div>
+
+    <div class="row justify-content-center g-4">
+        {% for sector, config in departments.items() %}
+        <div class="col-md-7">
+            <div class="card tenant-card p-4">
+                
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex align-items-center">
+                        <div class="p-3 rounded-4 bg-{{ config['color'] }} bg-opacity-20 text-{{ config['color'] }} me-3 fs-3">
+                            <i class="fa-solid {{ config['icon'] }}"></i>
+                        </div>
+                        <div>
+                            <h2 class="sector-title m-0">{{ config['title'] }}</h2>
+                            <span class="badge rules-badge mt-1 small">Token Key Rules: Match Prefix {{ config['prefix'] }}XX</span>
+                        </div>
+                    </div>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-30 px-3 py-2 rounded-pill smallfw-bold"><i class="fa-solid fa-shield-halved me-1"></i> Isolated</span>
+                </div>
+
+                <div class="row g-3 my-2 text-center">
+                    <div class="col-4">
+                        <div class="mini-stat-box">
+                            <span class="stat-label">Total Load</span>
+                            <div class="stat-value text-info">{{ stats[sector]['total'] }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="mini-stat-box">
+                            <span class="stat-label">Waiting</span>
+                            <div class="stat-value text-warning">{{ stats[sector]['waiting'] }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="mini-stat-box">
+                            <span class="stat-label">Serving</span>
+                            <div class="stat-value text-success">{{ stats[sector]['serving'] }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="/{{ sector }}/book" class="btn btn-book w-100 py-3 mb-3 text-uppercase tracking-wider fs-6"><i class="fa-solid fa-ticket me-2"></i>Book Customer Token</a>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="/{{ sector }}/admin/login" class="btn btn-console w-100 py-2.5"><i class="fa-solid fa-user-tie me-2"></i>Staff Desk</a>
+                        </div>
+                        <div class="col-6">
+                            <a href="/{{ sector }}/tv-display" class="btn btn-console btn-tv w-100 py-2.5"><i class="fa-solid fa-desktop me-2"></i>TV Monitor</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-3 pt-2 border-top border-secondary border-opacity-30">
+                    <a href="/{{ sector }}/analytics" class="analytics-link">
+                        <i class="fa-solid fa-chart-pie me-1.5"></i> Open Intelligence Analytics &rarr;
+                    </a>
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+</body>
+</html>

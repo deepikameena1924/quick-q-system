@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick-Q | Staff Control Desk</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+        .admin-card { background-color: #1e293b; border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .next-btn { background: linear-gradient(135deg, #10b981, #059669); border: none; font-size: 1.5rem; padding: 20px; border-radius: 12px; font-weight: 700; }
+        .next-btn:hover { background: linear-gradient(135deg, #059669, #047857); }
+        .emergency-overlay { background: #7f1d1d; border: 2px dashed #ef4444; border-radius: 12px; padding: 15px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.9; } 50% { opacity: 0.6; } 100% { opacity: 0.9; } }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-5 border-bottom border-secondary pb-3">
+        <div>
+            <h1 class="fw-bold text-white m-0"><i class="fa-solid fa-headset text-success me-2"></i>Operator Console</h1>
+            <span class="badge bg-primary fs-6 mt-2" id="currentCounter">Active Area: {{ counter }}</span>
+        </div>
+        <a href="/admin/logout" class="btn btn-outline-danger fw-bold"><i class="fa-solid fa-power-off me-2"></i>Logout Desk</a>
+    </div>
+
+    {% if active_emergency %}
+    <div class="emergency-overlay d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="text-white fw-bold m-0"><i class="fa-solid fa-triangle-exclamation fa-flash me-2"></i>CRITICAL EMERGENCY ALERT LOGGED</h4>
+            <p class="m-0 small text-white-50">An emergency token ({{ active_emergency.token }}) is waiting in the hospital queue layout.</p>
+        </div>
+        <audio autoplay loop>
+            <source src="https://assets.mixkit.co/active_storage/sfx/951/951-84.wav" type="audio/wav">
+        </audio>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card admin-card p-4 h-100 text-center d-flex flex-column justify-content-between">
+                <div>
+                    <h4 class="text-muted text-uppercase tracking-wider fw-semibold mb-4">Desk Token Controller</h4>
+                    <a href="/admin/next" class="btn btn-success w-100 next-btn shadow mb-4"><i class="fa-solid fa-forward-step me-2"></i>Call Next Customer</a>
+                </div>
+
+                <div class="p-4 bg-black bg-opacity-20 rounded-3 border border-secondary">
+                    <span class="text-muted d-block small mb-1">Currently On Counter</span>
+                    {% if current_serving %}
+                        <h1 class="display-2 fw-bold text-success m-0" id="tokenToAnnounce">{{ current_serving.token }}</h1>
+                        <h4 class="text-white mt-1 mb-3">{{ current_serving.name }}</h4>
+                        <span class="badge bg-secondary p-2 px-3" id="serviceToAnnounce">{{ current_serving.service }}</span>
+
+                        <div class="mt-4 pt-3 border-top border-secondary">
+                            <h6 class="text-warning text-start mb-2"><i class="fa-solid fa-shuffle me-1"></i> Transfer to Next Department?</h6>
+                            <form action="/admin/transfer/{{ current_serving.token }}" method="POST" class="d-flex gap-2">
+                                <select class="form-select bg-dark text-white border-secondary" name="next_service" required>
+                                    <option value="" disabled selected>Select Next Service</option>
+                                    <optgroup label="Bank Services">
+                                        <option value="Cash Deposit">Cash Counter</option>
+                                        <option value="New Account">Account Desk</option>
+                                    </optgroup>
+                                    <optgroup label="Hospital Services">
+                                        <option value="OPD Doctor">OPD Doctor</option>
+                                        <option value="Blood Test">Blood Test Lab</option>
+                                    </optgroup>
+                                </select>
+                                <button type="submit" class="btn btn-warning fw-bold text-dark px-3">Transfer</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <h2 class="text-muted py-4">No active user on desk.</h2>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card admin-card p-4 h-100">
+                <h4 class="text-white fw-bold mb-3"><i class="fa-solid fa-list-ol text-muted me-2"></i>Live Queue Line Log</h4>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-dark table-hover align-middle m-0">
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>Customer Name</th>
+                                <th>Target Service</th>
+                                <th>Age</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for person in waiting_list %}
+                            <tr class="{% if person.is_emergency %}table-danger text-dark fw-bold{% elif person.age >= 60 %}text-warning{% endif %}">
+                                <td><span class="badge bg-light text-dark fs-6">{{ person.token }}</span></td>
+                                <td>{{ person.name }}</td>
+                                <td><small>{{ person.service }}</small></td>
+                                <td>{{ person.age }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-5">No patients remaining in waiting buffer.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const tokenElement = document.getElementById("tokenToAnnounce");
+        const counterText = document.getElementById("currentCounter")?.innerText || "Counter 01";
+        
+        if (tokenElement) {
+            const token = tokenElement.innerText;
+            const cleanCounter = counterText.replace("Active Area: ", "");
+            
+            // 🗣️ Formulating English Announcement String
+            const msgString = `Attention please, Token Number ${token.split('').join(' ')}, please proceed to ${cleanCounter}`;
+            
+            // Native Web Speech Engine Initialization
+            const speech = new SpeechSynthesisUtterance();
+            speech.text = msgString;
+            speech.volume = 1;
+            speech.rate = 0.9; // Keeps speech highly clear and corporate
+            speech.pitch = 1;
+            
+            // Fire the audio announcement instantly on page load
+            window.speechSynthesis.speak(speech);
+        }
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

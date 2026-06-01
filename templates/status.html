@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Token Status Terminal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; }
+        .status-card { background: #1e293b; border-radius: 24px; border: 2px solid #475569; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        
+        /* 🌟 HIGH CONTRAST LABELS */
+        .ticket-title { color: #cbd5e1 !important; font-weight: 700; letter-spacing: 1.5px; font-size: 0.9rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .label-text { color: #f1f5f9 !important; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        .unit-text { color: #cbd5e1 !important; font-size: 1.1rem; font-weight: 600; }
+        .sub-instructions { color: #e2e8f0 !important; font-size: 0.9rem; font-weight: 500; line-height: 1.5; padding: 0 15px; }
+        
+        .token-badge { font-size: 5rem; font-weight: 900; color: #3b82f6; letter-spacing: 2px; text-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+        .qr-box img { border: 8px solid white; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+        .live-indicator { font-size: 0.85rem; font-weight: 700; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 6px 16px; border-radius: 50px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5 text-center">
+            
+            <div class="card status-card p-4 mb-4">
+                <div class="mb-3">
+                    <span class="live-indicator"><i class="fa-solid fa-circle text-success fa-pulse me-1"></i> Live Tracking Active</span>
+                </div>
+                
+                <span class="text-uppercase tracking-wider ticket-title d-block mb-1">Your Secure Ticket Reference</span>
+                <div class="token-badge my-1">{{ booking.token }}</div>
+                <h2 class="fw-bold text-white mb-2">{{ booking.name }}</h2>
+                
+                <div class="d-inline-block mx-auto mb-2">
+                    <span class="badge bg-dark text-warning border border-secondary px-3 py-2 rounded-pill fs-6 fw-bold">
+                        Service: {{ booking.service }}
+                    </span>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <div class="row mb-4">
+                    <div class="col-6 border-end border-secondary">
+                        <span class="label-text">Line Position</span>
+                        <h1 class="fw-bold text-warning mt-1 m-0" style="font-size: 2.8rem;">{{ position }}</h1>
+                    </div>
+                    <div class="col-6">
+                        <span class="label-text">Est. Wait Time</span>
+                        <h1 class="fw-bold text-info mt-1 m-0" style="font-size: 2.8rem;">{{ wait_time }} <span class="unit-text">mins</span></h1>
+                    </div>
+                </div>
+
+                <div class="qr-box my-3">
+                    <img src="data:image/png;base64,{{ qr_data }}" alt="Live Queue QR Code" width="160" height="160">
+                </div>
+                
+                <p class="sub-instructions mt-2 mb-4">Scan this QR code with any mobile camera to monitor your live counter line status on the go!</p>
+
+                {% if booking.status == "Waiting" %}
+                <form action="/{{ sector }}/cancel/{{ booking.token }}" method="POST">
+                    <button type="submit" class="btn btn-danger w-100 fw-bold rounded-pill py-2 shadow">
+                        <i class="fa-solid fa-rectangle-xmark me-2"></i>Cancel My Ticket
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <a href="/" class="btn btn-sm btn-outline-light rounded-pill px-4 py-2 mt-2 text-decoration-none shadow-sm"><i class="fa-solid fa-arrow-left me-1"></i> Return to Multi-Tenant Hub</a>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socketio.org/4.6.0/socketio.min.js"></script>
+<script>
+    const socket = io();
+    socket.on('update_and_call', function(data) {
+        if(data.sector === "{{ sector }}") { location.reload(); }
+    });
+    socket.on('queue_updated', function(data) {
+        if(data.sector === "{{ sector }}") { location.reload(); }
+    });
+</script>
+</body>
+</html>
