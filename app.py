@@ -12,7 +12,8 @@ app = Flask(__name__)
 app.secret_key = 'quickq_multi_tenant_websocket_key_2026'
 
 # 🗄️ Database Setup (SQLite Engine)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///queue.db'
+db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'queue.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
