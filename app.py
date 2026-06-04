@@ -6,19 +6,21 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit
-import qrcode  # Offline QR Code Generation Matrix
+import qrcode
 
 app = Flask(__name__)
-app.secret_key = 'quickq_multi_tenant_websocket_key_2026'
+# Render ke environment variable se key uthayega, nahi toh fallback default use karega
+app.secret_key = os.environ.get('SECRET_KEY', 'quickq_multi_tenant_websocket_key_2026')
 
-# 🗄️ Database Setup (SQLite Engine)
-db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'queue.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+# 🗄️ Database Setup (Render Production Secure Absolute Path Fix)
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'queue.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
-# 🔌 Initialize WebSockets Engine for Live TV Sync
-socketio = SocketIO(app, cors_allowed_origins="*")
+# 🔌 WebSockets Engine Base Configuration
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # 📋 Database Model Architecture
 class Booking(db.Model):
@@ -67,15 +69,18 @@ DEPARTMENTS = {
 # 🏠 1. Multi-Tenant Central Hub Route
 @app.route('/')
 def home():
-    stats = {}
-    total_platform_footfall = 0
-    for sector in DEPARTMENTS.keys():
-        total = Booking.query.filter_by(location=sector).count()
-        waiting = Booking.query.filter_by(location=sector, status="Waiting").count()
-        serving = Booking.query.filter_by(location=sector, status="Serving").count()
-        total_platform_footfall += total
-        stats[sector] = {'total': total, 'waiting': waiting, 'serving': serving}
-    return render_template('index.html', departments=DEPARTMENTS, stats=stats, overall_footfall=total_platform_footfall)
+    try:
+        stats = {}
+        total_platform_footfall = 0
+        for sector in DEPARTMENTS.keys():
+            total = Booking.query.filter_by(location=sector).count()
+            waiting = Booking.query.filter_by(location=sector, status="Waiting").count()
+            serving = Booking.query.filter_by(location=sector, status="Serving").count()
+            total_platform_footfall += total
+            stats[sector] = {'total': total, 'waiting': waiting, 'serving': serving}
+        return render_template('index.html', departments=DEPARTMENTS, stats=stats, overall_footfall=total_platform_footfall)
+    except Exception as e:
+        return f"Database Hub Error: {str(e)}", 500
 
 # 🎫 2. Token Booking Terminal Route
 @app.route('/<sector>/book', methods=['GET', 'POST'])
@@ -117,7 +122,7 @@ def book(sector):
         
     return render_template('booking.html', sector=sector, config=config)
 
-# 🎯 3. Live Token Status Tracker (Fixed High Contrast Layout + Jinja2 Safe String Conversion)
+# 🎯 3. Live Token Status Tracker
 @app.route('/<sector>/status/<token>')
 def status(sector, token):
     if sector not in DEPARTMENTS: 
@@ -147,7 +152,7 @@ def status(sector, token):
         if wait_time < 1 and not booking.is_emergency: 
             wait_time = 2
 
-    # 📡 Pure Offline Base64 QR Generator Engine
+    # 📡 Base64 QR Generator Node
     live_track_url = request.url_root + f"{sector}/status/{token}"
     qr = qrcode.QRCode(version=1, box_size=10, border=1)
     qr.add_data(live_track_url)
@@ -158,7 +163,6 @@ def status(sector, token):
     img.save(buffered, format="PNG")
     qr_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-    # 🌟 FIXED FOR JINJA: Explicit string casting ensures template stability
     return render_template('status.html', 
                            booking=booking, 
                            position=str(position_str), 
@@ -171,100 +175,4 @@ def status(sector, token):
 def tv_display(sector):
     if sector not in DEPARTMENTS: 
         abort(404)
-    serving_now = Booking.query.filter_by(status="Serving", location=sector).order_by(db.desc(Booking.served_at)).limit(4).all()
-    top_waiting = Booking.query.filter_by(status="Waiting", location=sector).all()
-    top_waiting.sort(key=lambda x: (not x.is_emergency, not (x.age >= 60), x.id))
-    return render_template('tv_display.html', serving=serving_now, waiting=top_waiting[:5], config=DEPARTMENTS[sector], sector=sector)
-
-# 🔐 5. Staff Console Secure Login (Bypassed for instant operational efficiency)
-@app.route('/<sector>/admin/login', methods=['GET', 'POST'])
-def admin_login(sector):
-    if sector not in DEPARTMENTS: 
-        abort(404)
-    if request.method == 'POST':
-        session[f'staff_logged_{sector}'] = True
-        session[f'staff_counter_{sector}'] = request.form['counter']
-        return redirect(url_for('admin', sector=sector))
-    return render_template('admin_login.html', sector=sector, config=DEPARTMENTS[sector])
-
-# 🛠️ 6. Staff Operator Control Terminal
-@app.route('/<sector>/admin')
-def admin(sector):
-    if not session.get(f'staff_logged_{sector}'): 
-        return redirect(url_for('admin_login', sector=sector))
-    my_counter = session.get(f'staff_counter_{sector}', 'Counter 01')
-    current_serving = Booking.query.filter_by(status="Serving", counter_assigned=my_counter, location=sector).first()
-    waiting_list = Booking.query.filter_by(status="Waiting", location=sector).all()
-    waiting_list.sort(key=lambda x: (not x.is_emergency, not (x.age >= 60), x.id))
-    active_emergency = Booking.query.filter_by(status="Waiting", is_emergency=True, location=sector).first()
-    return render_template('admin.html', current_serving=current_serving, waiting_list=waiting_list, counter=my_counter, active_emergency=active_emergency, sector=sector, config=DEPARTMENTS[sector])
-
-# 📢 7. Route to Dispatch & Signal Next Waiting Customer Ticket
-@app.route('/<sector>/admin/next')
-def serve_next(sector):
-    if not session.get(f'staff_logged_{sector}'): 
-        return redirect(url_for('admin_login', sector=sector))
-    my_counter = session.get(f'staff_counter_{sector}', 'Counter 01')
-    current = Booking.query.filter_by(status="Serving", counter_assigned=my_counter, location=sector).first()
-    if current: 
-        current.status = "Completed"
-    
-    waiting_list = Booking.query.filter_by(status="Waiting", location=sector).all()
-    waiting_list.sort(key=lambda x: (not x.is_emergency, not (x.age >= 60), x.id))
-    
-    announced_token = ""
-    if waiting_list:
-        next_person = waiting_list[0]
-        next_person.status = "Serving"
-        next_person.counter_assigned = my_counter
-        next_person.served_at = datetime.utcnow()
-        announced_token = next_person.token
-        
-    db.session.commit()
-    socketio.emit('update_and_call', {'sector': sector, 'token': announced_token, 'counter': my_counter})
-    return redirect(url_for('admin', sector=sector))
-
-# ❌ 8. Ticket Cancellation Node Pipeline
-@app.route('/<sector>/cancel/<token>', methods=['POST'])
-def cancel_ticket(sector, token):
-    booking = Booking.query.filter_by(token=token, location=sector).first()
-    if booking:
-        booking.status = "Cancelled"
-        db.session.commit()
-        socketio.emit('queue_updated', {'sector': sector})
-    return redirect(url_for('status', sector=sector, token=token))
-
-# 📊 9. Deep Operational Intelligence Analytics (Chart.js Metric Maps API)
-@app.route('/<sector>/analytics')
-def analytics(sector):
-    if sector not in DEPARTMENTS: 
-        abort(404)
-    
-    all_bookings = Booking.query.filter_by(location=sector).all()
-    completed = Booking.query.filter_by(status="Completed", location=sector).all()
-    
-    total_wait = sum([(b.served_at - b.created_at).total_seconds() / 60 for b in completed if b.served_at])
-    avg_wait = round(total_wait / len(completed), 1) if completed else 0
-
-    # Metric Dataset mapping for ChartJS Engine 
-    service_labels = DEPARTMENTS[sector]['services']
-    service_counts = [Booking.query.filter_by(location=sector, service=s).count() for s in service_labels]
-
-    slots_labels = ['09:00 AM', '11:00 AM', '02:00 PM', '04:00 PM']
-    slots_counts = [Booking.query.filter_by(location=sector, time_slot=s).count() for s in slots_labels]
-
-    return render_template('analytics.html', 
-                           total=len(all_bookings), served=len(completed), 
-                           waiting=Booking.query.filter_by(status="Waiting", location=sector).count(), 
-                           avg_wait=avg_wait, service_labels=service_labels, 
-                           service_counts=service_counts, slots_labels=slots_labels, 
-                           slots_counts=slots_counts, sector=sector, config=DEPARTMENTS[sector])
-
-# DB Init Context Trigger Block
-with app.app_context():
-    db.create_all()
-
-if __name__ == '__main__':
-    # 🌟 Production Dynamic Port Detection Engine for Render/Cloud Platforms
-    port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+    serving_now = Booking.query.filter_by(status="Serving", location
